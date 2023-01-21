@@ -1,6 +1,6 @@
 type name = string [@@deriving show { with_path = false }]
 
-type types =
+type ctype =
   | TVoid
   | TChar
   | TInt8
@@ -9,59 +9,66 @@ type types =
   | TInt
   | TFloat
   | TDouble
-  | TPointer of types
+  | TPointer of ctype
 [@@deriving show { with_path = false }]
 
-type values =
+type const =
   | VInt of Int32.t
   | VChar of char
-  | VFloat of float
   | VDouble of float
   | VString of string
 [@@deriving show { with_path = false }]
 
-type expressions =
-  | Pointer of expressions
-  | Address of expressions
-  | Add of expressions * expressions
-  | Sub of expressions * expressions
-  | Inc of expressions
-  | Dec of expressions
-  | UnaryMin of expressions
-  | UnaryPlus of expressions
-  | Mul of expressions * expressions
-  | Div of expressions * expressions
-  | Mod of expressions * expressions
-  | And of expressions * expressions
-  | Or of expressions * expressions
-  | Equal of expressions * expressions
-  | NotEqual of expressions * expressions
-  | Less of expressions * expressions
-  | LessOrEq of expressions * expressions
-  | More of expressions * expressions
-  | MoreOrEq of expressions * expressions
-  | Assign of expressions * expressions
-  | Define of types * expressions * expressions option
-  | DefineSeq of expressions list
-  | FuncCall of name * expressions list
-  | Cast of types * expressions
+type expression =
+  | Pointer of expression
+  | Address of expression
+  | Add of expression * expression
+  | Sub of expression * expression
+  | Inc of expression
+  | Dec of expression
+  | UnaryMin of expression
+  | UnaryPlus of expression
+  | Mul of expression * expression
+  | Div of expression * expression
+  | Mod of expression * expression
+  | And of expression * expression
+  | Or of expression * expression
+  | Equal of expression * expression
+  | NotEqual of expression * expression
+  | Less of expression * expression
+  | LessOrEq of expression * expression
+  | More of expression * expression
+  | MoreOrEq of expression * expression
+  | Assign of expression * expression
+  | Define of ctype * expression * expression option
+  | DefineSeq of expression list
+  | FuncCall of name * expression list
+  | Cast of ctype * expression
   | Variable of name
-  | Value of values
-  | Array of types * name * expressions option * expressions list option
-  | ArrayElem of name * expressions
+  | Value of const
+  | Array of ctype * name * expression option * expression list option
+  | ArrayElem of name * expression
 [@@deriving show { with_path = false }]
 
-and statements =
-  | Expression of expressions
-  | StatementsList of statements list
-  | If of expressions * statements
-  | IfSeq of statements list * statements option
-  | While of expressions * statements
-  | For of
-      expressions option * expressions option * expressions option * statements
+and statement =
+  | Expression of expression
+  | StatementsBlock of statement list
+  | If of expression * statement
+  | IfSeq of statement list * statement option
+  | While of expression * statement
+  | For of expression option * expression option * expression option * statement
   | Break
   | Continue
-  | Return of expressions
-  | FunctionDef of types * name * (types * name) list * statements option
-  | FuncSeq of statements list
+  | Return of expression
+[@@deriving show { with_path = false }]
+
+and program_function = {
+  function_type : ctype;
+  function_name : name;
+  function_arguments : (ctype * name) list;
+  function_body : statement option;
+}
+[@@deriving show { with_path = false }]
+
+and function_list = program_function list
 [@@deriving show { with_path = false }]

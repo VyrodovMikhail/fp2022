@@ -1,72 +1,78 @@
 type name = string
 
-type types =
-  | TVoid
-  | TChar
-  | TInt8
-  | TInt16
-  | TInt32
-  | TInt
-  | TFloat
-  | TDouble
-  | TPointer of types
+type ctype =
+  | TVoid  (** void type in C *)
+  | TChar  (** char type in C *)
+  | TInt8  (** int_8t type in C *)
+  | TInt16  (** int_16t type in C *)
+  | TInt32  (** int_32t type in C *)
+  | TInt  (** int type in C *)
+  | TFloat  (** float type in C *)
+  | TDouble  (** double type in C *)
+  | TPointer of ctype  (** pointer type in C (int** or char*, etc) *)
 [@@deriving show { with_path = false }]
 
-type values =
-  | VInt of Int32.t
-  | VChar of char
-  | VFloat of float
-  | VDouble of float
-  | VString of string
+type const =
+  | VInt of Int32.t  (** int number *)
+  | VChar of char  (** one character (for example, 'c') *)
+  | VDouble of float  (** float number *)
+  | VString of string  (** string const (for example, "Hello") *)
 [@@deriving show { with_path = false }]
 
-type expressions =
-  | Pointer of expressions  (** var* *)
-  | Address of expressions  (** &var *)
-  | Add of expressions * expressions  (** a + b *)
-  | Sub of expressions * expressions  (** a - b *)
-  | Inc of expressions  (** var++ *)
-  | Dec of expressions  (** var-- *)
-  | UnaryMin of expressions  (** -(expr) or -var *)
-  | UnaryPlus of expressions  (** +(expr) or +var *)
-  | Mul of expressions * expressions  (** a * b *)
-  | Div of expressions * expressions  (** a / b *)
-  | Mod of expressions * expressions  (** a % b *)
-  | And of expressions * expressions  (** a && b *)
-  | Or of expressions * expressions  (** a || b *)
-  | Equal of expressions * expressions  (** a == b *)
-  | NotEqual of expressions * expressions  (** a != b *)
-  | Less of expressions * expressions  (** a < b *)
-  | LessOrEq of expressions * expressions  (** a <= b *)
-  | More of expressions * expressions  (** a > b *)
-  | MoreOrEq of expressions * expressions  (** a >= b *)
-  | Assign of expressions * expressions  (** a = b *)
-  | Define of types * expressions * expressions option  (** type var (= expr) *)
-  | DefineSeq of expressions list  (** type a, b = expr, c; *)
-  | FuncCall of name * expressions list  (** Function (a, b, c) *)
-  | Cast of types * expressions  (** (type)(expr) *)
+type expression =
+  | Pointer of expression  (** var* *)
+  | Address of expression  (** &var *)
+  | Add of expression * expression  (** a + b *)
+  | Sub of expression * expression  (** a - b *)
+  | Inc of expression  (** var++ *)
+  | Dec of expression  (** var-- *)
+  | UnaryMin of expression  (** -(expr) or -var *)
+  | UnaryPlus of expression  (** +(expr) or +var *)
+  | Mul of expression * expression  (** a * b *)
+  | Div of expression * expression  (** a / b *)
+  | Mod of expression * expression  (** a % b *)
+  | And of expression * expression  (** a && b *)
+  | Or of expression * expression  (** a || b *)
+  | Equal of expression * expression  (** a == b *)
+  | NotEqual of expression * expression  (** a != b *)
+  | Less of expression * expression  (** a < b *)
+  | LessOrEq of expression * expression  (** a <= b *)
+  | More of expression * expression  (** a > b *)
+  | MoreOrEq of expression * expression  (** a >= b *)
+  | Assign of expression * expression  (** a = b *)
+  | Define of ctype * expression * expression option  (** type var (= expr) *)
+  | DefineSeq of expression list  (** type a, b = expr, c; *)
+  | FuncCall of name * expression list  (** Function (a, b, c) *)
+  | Cast of ctype * expression  (** (type)(expr) *)
   | Variable of name  (** var *)
-  | Value of values  (** value (const) *)
-  | Array of types * name * expressions option * expressions list option
+  | Value of const  (** value (const) *)
+  | Array of ctype * name * expression option * expression list option
       (** type arr = {expr1, expr2, expr3} *)
-  | ArrayElem of name * expressions  (** arr[index] *)
+  | ArrayElem of name * expression  (** arr[index] *)
 [@@deriving show { with_path = false }]
 
-and statements =
-  | Expression of expressions
-  | StatementsList of statements list
+and statement =
+  | Expression of expression
+  | StatementsBlock of statement list
       (** list of statements in {} splitted by ";" or by other statement *)
-  | If of expressions * statements  (** if (condition) {statements list} *)
-  | IfSeq of statements list * statements option
+  | If of expression * statement  (** if (condition) {statements list} *)
+  | IfSeq of statement list * statement option
       (** if {...} else if {...} else {...} in list *)
-  | While of expressions * statements  (** while (condition) {...} *)
-  | For of
-      expressions option * expressions option * expressions option * statements
+  | While of expression * statement  (** while (condition) {...} *)
+  | For of expression option * expression option * expression option * statement
       (** for (initial expr; condition; loop expr) {...} *)
   | Break  (** break; *)
   | Continue  (** continue; *)
-  | Return of expressions  (** return expr; *)
-  | FunctionDef of types * name * (types * name) list * statements option
-      (** type funcname(type arg1, type arg2 ...) {...} *)
-  | FuncSeq of statements list  (** list of function defs *)
+  | Return of expression  (** return expr; *)
+[@@deriving show { with_path = false }]
+
+and program_function = {
+  function_type : ctype;
+  function_name : name;
+  function_arguments : (ctype * name) list;
+  function_body : statement option;
+}
+[@@deriving show { with_path = false }]
+
+and function_list = program_function list
 [@@deriving show { with_path = false }]

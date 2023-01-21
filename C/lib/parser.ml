@@ -67,7 +67,7 @@ let cfcall x y = return (Ast.FuncCall (x, y))
 let cdef x y z = return (Ast.Define (x, y, z))
 let cdefseq exprs = return (Ast.DefineSeq exprs)
 let cexpr input_expr = return (Ast.Expression input_expr)
-let cstlist xs = return (Ast.StatementsList xs)
+let cstlist xs = return (Ast.StatementsBlock xs)
 let cif condition stms = return (Ast.If (condition, stms))
 let cifseq conditions parsed_else = return (Ast.IfSeq (conditions, parsed_else))
 let cwhile condition stms = return (Ast.While (condition, stms))
@@ -75,26 +75,22 @@ let cwhile condition stms = return (Ast.While (condition, stms))
 let cfor first_expr condition last_expr stms =
   return (Ast.For (first_expr, condition, last_expr, stms))
 
-let cfuncdef f_type f_name f_args f_body =
-  return (Ast.FunctionDef (f_type, f_name, f_args, f_body))
-
-let cfuncseq func_list = return (Ast.FuncSeq func_list)
 let creturn expr = return (Ast.Return expr)
 
 type dispatch = {
-  func_call : dispatch -> Ast.expressions Angstrom.t;
-  arithmetical : dispatch -> string -> Ast.expressions Angstrom.t;
-  logical : dispatch -> string -> Ast.expressions Angstrom.t;
-  parse_and : dispatch -> string -> Ast.expressions Angstrom.t;
-  logical_sequence : dispatch -> string -> Ast.expressions Angstrom.t;
-  bracket : dispatch -> Ast.expressions Angstrom.t;
-  bracket_singles : dispatch -> string -> Ast.expressions Angstrom.t;
-  all_singles : dispatch -> string -> Ast.expressions Angstrom.t;
-  all_ops : dispatch -> string -> Ast.expressions Angstrom.t;
-  simple_commands : dispatch -> string -> Ast.expressions Angstrom.t;
-  statement : dispatch -> Ast.statements Angstrom.t;
-  func_def : dispatch -> Ast.statements Angstrom.t;
-  statement_block : dispatch -> Ast.statements Angstrom.t;
+  func_call : dispatch -> Ast.expression Angstrom.t;
+  arithmetical : dispatch -> string -> Ast.expression Angstrom.t;
+  logical : dispatch -> string -> Ast.expression Angstrom.t;
+  parse_and : dispatch -> string -> Ast.expression Angstrom.t;
+  logical_sequence : dispatch -> string -> Ast.expression Angstrom.t;
+  bracket : dispatch -> Ast.expression Angstrom.t;
+  bracket_singles : dispatch -> string -> Ast.expression Angstrom.t;
+  all_singles : dispatch -> string -> Ast.expression Angstrom.t;
+  all_ops : dispatch -> string -> Ast.expression Angstrom.t;
+  simple_commands : dispatch -> string -> Ast.expression Angstrom.t;
+  statement : dispatch -> Ast.statement Angstrom.t;
+  func_def : dispatch -> Ast.function_list Angstrom.t;
+  statement_block : dispatch -> Ast.statement Angstrom.t;
 }
 
 type error = [ `ParsingError of string ]
@@ -124,10 +120,16 @@ let parse_const =
   [
     ( spaces *> integer <* spaces >>= fun c ->
       return (Ast.Value (Ast.VInt (Int32.of_int c))) );
-    ( spaces *> char '\"'
-      *> take_while (fun c -> match c with '\"' -> false | _ -> true)
+    ( spaces *> char '\"' *> take_while (function '\"' -> false | _ -> true)
     <* char '\"' <* spaces
     >>= fun c -> return (Ast.Value (Ast.VString c)) );
+    (spaces *> char '\'' *> peek_char >>= function
+     | Some '\'' ->
+         char '\'' *> spaces
+         *> fail "quoted string should contain at least one character"
+     | Some x ->
+         char x *> char '\'' *> spaces *> return (Ast.Value (Ast.VChar x))
+     | None -> fail "unclosed quote at the end of the file");
     ( spaces *> is_float <* spaces >>= fun c ->
       return (Ast.Value (Ast.VDouble c)) );
   ]
@@ -136,8 +138,7 @@ let rec foldi i f acc = if i <= 0 then acc else foldi (pred i) f (f acc)
 
 let parse_type =
   let parse_simple_type =
-    spaces *> parse_name <* spaces >>= fun my_type ->
-    match my_type with
+    spaces *> parse_name <* spaces >>= function
     | "void" -> return Ast.TVoid
     | "int" -> return Ast.TInt32
     | "char" -> return Ast.TChar
@@ -161,7 +162,7 @@ let parse_dec =
 let parse_part_singles = choice (parse_const @ [ spaces *> varname <* spaces ])
 let parse_singles = spaces *> parse_part_singles <* spaces
 
-let parse_lam =
+let parse_c =
   let input_end end_input =
     spaces *> peek_string (String.length end_input) >>= fun x ->
     match String.equal x end_input with
@@ -187,8 +188,7 @@ let parse_lam =
         pack.all_ops pack ")"
         >>= (fun arg -> return (Option.some arg))
         <|> return Option.None <* char ')' <* spaces
-        >>= fun last_arg ->
-        match last_arg with
+        >>= function
         | Some arg -> cfcall x (args @ [ arg ])
         | None -> cfcall x [])
   in
@@ -265,7 +265,7 @@ let parse_lam =
         | "*" -> cmul left right
         | "/" -> cdiv left right
         | "%" -> cmod left right
-        | _ -> fail "uninformative fail"
+        | _ -> fail "Not priority operator"
       in
       create_expr
     in
@@ -284,7 +284,7 @@ let parse_lam =
             match op with
             | "+" -> cadd left right
             | "-" -> csub left right
-            | _ -> fail "uninformative fail"
+            | _ -> fail "op is not + or - operator"
           in
           create_expr
         in
@@ -316,7 +316,7 @@ let parse_lam =
                 match operator with
                 | "+" -> cadd left right
                 | "-" -> csub left right
-                | _ -> fail "uninformative fail"
+                | _ -> fail "op is not + or - operator"
               in
               create_expr
         in
@@ -347,7 +347,7 @@ let parse_lam =
           | "<" -> cless left right
           | "<=" -> clesseq left right
           | "!=" -> cnoteq left right
-          | _ -> fail "uninformative fail"
+          | _ -> fail "operator is not a simple logical operator"
         in
         let parse_logical end_input =
           [
@@ -377,7 +377,7 @@ let parse_lam =
           >>= fun right ->
           match operator with
           | "&&" -> cand left right
-          | _ -> fail "uninformative fail"
+          | _ -> fail "operator is not && operator"
         in
         parse_and inp_end "&&")
   in
@@ -401,7 +401,7 @@ let parse_lam =
           match operator with
           | "&&" -> cand left right
           | "||" -> cor left right
-          | _ -> fail "uninformative fail"
+          | _ -> fail "operator is not a && or || operator"
         in
         parse_or inp_end "||")
   in
@@ -441,7 +441,7 @@ let parse_lam =
           | "*=" -> cmul left right >>= fun op -> casgn left op
           | "/=" -> cdiv left right >>= fun op -> casgn left op
           | "%=" -> cmod left right >>= fun op -> casgn left op
-          | _ -> fail "uninformative fail"
+          | _ -> fail "operator is not a shorter arithmetical operator"
         in
         let parse_array =
           char '{' *> many (pack.all_ops pack "," <* char ',') >>= fun args ->
@@ -449,8 +449,7 @@ let parse_lam =
           >>= (fun arg -> return (Option.some arg))
           <|> spaces *> input_end "}" *> return Option.None
           <* char '}' <* spaces <* input_end inp_end
-          >>= fun last_arg ->
-          match last_arg with
+          >>= function
           | Some arg -> return (Option.some (args @ [ arg ]))
           | None -> return Option.None
         in
@@ -495,11 +494,10 @@ let parse_lam =
           cdefseq (vars_defs @ [ last_def ])
         in
         let parse_allowed_singles =
-          spaces *> pack.bracket_singles pack inp_end >>= fun expr ->
-          match expr with
+          spaces *> pack.bracket_singles pack inp_end >>= function
           | Ast.Cast (x, y) -> ccast x y
           | Ast.FuncCall (name, params) -> cfcall name params
-          | _ -> fail "uninformative fail"
+          | _ -> fail "expr is not allowed to be a single command"
         in
         choice
           [
@@ -620,10 +618,22 @@ let parse_lam =
              >>= fun func_body ->
              match last_arg with
              | Some arg ->
-                 cfuncdef func_type func_name (args @ [ arg ]) func_body
-             | None -> cfuncdef func_type func_name [] func_body )
+                 return
+                   {
+                     Ast.function_type = func_type;
+                     Ast.function_name = func_name;
+                     Ast.function_arguments = args @ [ arg ];
+                     Ast.function_body = func_body;
+                   }
+             | None ->
+                 return
+                   {
+                     Ast.function_type = func_type;
+                     Ast.function_name = func_name;
+                     Ast.function_arguments = [];
+                     Ast.function_body = func_body;
+                   } )
     <* spaces
-    >>= fun func_list -> cfuncseq func_list
   in
   {
     func_call;
@@ -643,8 +653,7 @@ let parse_lam =
 
 let parse str =
   match
-    Angstrom.parse_string
-      (parse_lam.func_def parse_lam)
+    Angstrom.parse_string (parse_c.func_def parse_c)
       ~consume:Angstrom.Consume.All str
   with
   | Result.Ok x -> Result.Ok x
@@ -653,12 +662,15 @@ let parse str =
 let parse_optimistically str = Result.get_ok (parse str)
 
 let%expect_test _ =
-  Format.printf "%a" Ast.pp_statements (parse_optimistically "int main() {}");
+  Format.printf "%a" Ast.pp_function_list (parse_optimistically "int main() {}");
   [%expect
-    {| (FuncSeq [(FunctionDef (TInt32, "main", [], (Some (StatementsList []))))]) |}]
+    {| 
+      [{ function_type = TInt32; function_name = "main"; function_arguments = [];
+         function_body = (Some (StatementsBlock [])) }
+        ] |}]
 
 let%expect_test _ =
-  Format.printf "%a" Ast.pp_statements
+  Format.printf "%a" Ast.pp_function_list
     (parse_optimistically
        "int main(double number, char** table) {\n\
         char* coeff = ToString(number);\n\
@@ -668,15 +680,15 @@ let%expect_test _ =
        \    }");
   [%expect
     {|
-  (FuncSeq
-     [(FunctionDef (TInt32, "main",
-         [(TDouble, "number"); ((TPointer (TPointer TChar)), "table")],
-         (Some (StatementsList
+      [{ function_type = TInt32; function_name = "main";
+         function_arguments =
+         [(TDouble, "number"); ((TPointer (TPointer TChar)), "table")];
+         function_body =
+         (Some (StatementsBlock
                   [(Expression
                       (DefineSeq
                          [(Define ((TPointer TChar), (Variable "coeff"),
-                             (Some (FuncCall ("ToString", [(Variable "number")]
-                                      )))
+                             (Some (FuncCall ("ToString", [(Variable "number")])))
                              ))
                            ]));
                     (Expression
@@ -686,16 +698,16 @@ let%expect_test _ =
                        (Assign ((Variable "coeff"),
                           (Add ((Cast ((TPointer TInt32), (Variable "coeff"))),
                              (Value (VInt 5l))))
-                          )));                          
+                          )));
                     (Expression
                        (FuncCall ("Insert",
                           [(Variable "table"); (Variable "coeff")])))
                     ]))
-         ))
-       ]) |}]
+         }
+        ] |}]
 
 let%expect_test _ =
-  Format.printf "%a" Ast.pp_statements
+  Format.printf "%a" Ast.pp_function_list
     (parse_optimistically
        "void Helper(int value) {\n\
         return value * (value + 1);\n\
@@ -721,67 +733,68 @@ let%expect_test _ =
         }");
   [%expect
     {|
-    (FuncSeq
-       [(FunctionDef (TVoid, "Helper", [(TInt32, "value")],
-           (Some (StatementsList
-                    [(Return
-                        (Mul ((Variable "value"),
-                           (Add ((Variable "value"), (Value (VInt 1l)))))))
-                      ]))
-           ));
-         (FunctionDef (TInt32, "main", [],
-            (Some (StatementsList
-                     [(Expression
-                         (DefineSeq
-                            [(Define (TInt32, (Variable "n"), None));
-                              (Define (TInt32, (Variable "i"), None))]));
-                       (Expression
-                          (DefineSeq
-                             [(Define (TInt32, (Variable "fact"),
-                                 (Some (Value (VInt 1l)))))
-                               ]));
-                       (Expression
-                          (FuncCall ("printf",
-                             [(Value (VString "Enter an integer: "))])));
-                       (Expression
-                          (FuncCall ("scanf",
-                             [(Value (VString "%d")); (Address (Variable "n"))])));
-                       (IfSeq (
-                          [(If ((Less ((Variable "n"), (Value (VInt 0l)))),
-                              (StatementsList
-                                 [(Expression
-                                     (FuncCall ("printf",
-                                        [(Value
-                                            (VString
-                                               "Error! Factorial of a negative number doesn't exist."))
-                                          ]
-                                        )))
-                                   ])
-                              ))
-                            ],
-                          (Some (StatementsList
-                                   [(For (
-                                       (Some (Assign ((Variable "i"),
-                                                (Value (VInt 1l))))),
-                                       (Some (LessOrEq ((Variable "i"),
-                                                (Variable "n")))),
-                                       (Some (Inc (Variable "i"))),
-                                       (StatementsList
-                                          [(Expression
-                                              (Assign ((Variable "fact"),
-                                                 (Mul ((Variable "fact"),
-                                                    (Variable "i")))
-                                                 )))
-                                            ])
-                                       ));
-                                     (Expression
-                                        (FuncCall ("printf",
-                                           [(Value
-                                               (VString "Factorial of %d = %llu"));
-                                             (Variable "n"); (Variable "fact")]
-                                           )))
-                                     ]))
-                          ));
-                       (Return (Value (VInt 0l)))]))
-            ))
-         ]) |}]
+      [{ function_type = TVoid; function_name = "Helper";
+         function_arguments = [(TInt32, "value")];
+         function_body =
+         (Some (StatementsBlock
+                  [(Return
+                      (Mul ((Variable "value"),
+                         (Add ((Variable "value"), (Value (VInt 1l)))))))
+                    ]))
+         };
+        { function_type = TInt32; function_name = "main"; function_arguments = [];
+          function_body =
+          (Some (StatementsBlock
+                   [(Expression
+                       (DefineSeq
+                          [(Define (TInt32, (Variable "n"), None));
+                            (Define (TInt32, (Variable "i"), None))]));
+                     (Expression
+                        (DefineSeq
+                           [(Define (TInt32, (Variable "fact"),
+                               (Some (Value (VInt 1l)))))
+                             ]));
+                     (Expression
+                        (FuncCall ("printf",
+                           [(Value (VString "Enter an integer: "))])));
+                     (Expression
+                        (FuncCall ("scanf",
+                           [(Value (VString "%d")); (Address (Variable "n"))])));
+                     (IfSeq (
+                        [(If ((Less ((Variable "n"), (Value (VInt 0l)))),
+                            (StatementsBlock
+                               [(Expression
+                                   (FuncCall ("printf",
+                                      [(Value
+                                          (VString
+                                             "Error! Factorial of a negative number doesn't exist."))
+                                        ]
+                                      )))
+                                 ])
+                            ))
+                          ],
+                        (Some (StatementsBlock
+                                 [(For (
+                                     (Some (Assign ((Variable "i"),
+                                              (Value (VInt 1l))))),
+                                     (Some (LessOrEq ((Variable "i"),
+                                              (Variable "n")))),
+                                     (Some (Inc (Variable "i"))),
+                                     (StatementsBlock
+                                        [(Expression
+                                            (Assign ((Variable "fact"),
+                                               (Mul ((Variable "fact"),
+                                                  (Variable "i")))
+                                               )))
+                                          ])
+                                     ));
+                                   (Expression
+                                      (FuncCall ("printf",
+                                         [(Value (VString "Factorial of %d = %llu"));
+                                           (Variable "n"); (Variable "fact")]
+                                         )))
+                                   ]))
+                        ));
+                     (Return (Value (VInt 0l)))]))
+          }
+        ] |}]
