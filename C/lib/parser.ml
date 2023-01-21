@@ -1,13 +1,7 @@
-(** Copyright 2021-2022, Kakadu and contributors *)
-
-(** SPDX-License-Identifier: LGPL-3.0-or-later *)
-
-(* TODO: implement parser here *)
 open Angstrom
 
 let is_space = function ' ' | '\t' | '\n' | '\r' -> true | _ -> false
 
-(* Это парсер. Скипает все виды пропусков между выражениями. *)
 let spaces = skip_while is_space
 let spaces = skip_many (satisfy is_space)
 let str_integer = take_while1 (function '0' .. '9' -> true | _ -> false)
@@ -44,10 +38,8 @@ let is_digit = function '0' .. '9' -> true | _ -> false
 (* ------------------- *)
 let cval x = Ast.Value x
 let cvar x = Ast.Variable x
-
 let carr arr_type name len elems =
   return (Ast.Array (arr_type, name, len, elems))
-
 let carrelem name index = return (Ast.ArrayElem (name, index))
 let cptr x = return (Ast.Pointer x)
 let caddr x = return (Ast.Address x)
@@ -78,13 +70,10 @@ let cstlist xs = return (Ast.StatementsList xs)
 let cif condition stms = return (Ast.If (condition, stms))
 let cifseq conditions parsed_else = return (Ast.IfSeq (conditions, parsed_else))
 let cwhile condition stms = return (Ast.While (condition, stms))
-
 let cfor first_expr condition last_expr stms =
   return (Ast.For (first_expr, condition, last_expr, stms))
-
 let cfuncdef f_type f_name f_args f_body =
   return (Ast.FunctionDef (f_type, f_name, f_args, f_body))
-
 let cfuncseq func_list = return (Ast.FuncSeq func_list)
 let creturn expr = return (Ast.Return expr)
 
