@@ -709,6 +709,45 @@ let%expect_test _ =
 let%expect_test _ =
   Format.printf "%a" Ast.pp_function_list
     (parse_optimistically
+       "int main(double number, char** table) {\n\
+        char* coeff = ToString(number);\n\
+        char letter = 'a';\n\
+       \    char* my_str = \"my_string\";\n\
+       \    Insert(table, coeff);\n\
+       \    }");
+  [%expect
+    {|
+  [{ function_type = TInt32; function_name = "main";
+     function_arguments =
+     [(TDouble, "number"); ((TPointer (TPointer TChar)), "table")];
+     function_body =
+     (Some (StatementsBlock
+              [(Expression
+                  (DefineSeq
+                     [(Define ((TPointer TChar), (Variable "coeff"),
+                         (Some (FuncCall ("ToString", [(Variable "number")])))
+                         ))
+                       ]));
+                (Expression
+                   (DefineSeq
+                      [(Define (TChar, (Variable "letter"),
+                          (Some (Value (VChar 'a')))))
+                        ]));
+                (Expression
+                   (DefineSeq
+                      [(Define ((TPointer TChar), (Variable "my_str"),
+                          (Some (Value (VString "my_string")))))
+                        ]));
+                (Expression
+                   (FuncCall ("Insert",
+                      [(Variable "table"); (Variable "coeff")])))
+                ]))
+     }
+    ] |}]
+
+let%expect_test _ =
+  Format.printf "%a" Ast.pp_function_list
+    (parse_optimistically
        "void Helper(int value) {\n\
         return value * (value + 1);\n\
         }\n\
