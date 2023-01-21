@@ -87,7 +87,6 @@ let cfuncdef f_type f_name f_args f_body =
 
 let cfuncseq func_list = return (Ast.FuncSeq func_list)
 let creturn expr = return (Ast.Return expr)
-let celse condition st = return (Ast.Else (condition, st))
 
 type dispatch = {
   func_call : dispatch -> Ast.expressions Angstrom.t;

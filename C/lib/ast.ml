@@ -25,14 +25,14 @@ type values =
 [@@deriving show { with_path = false }]
 
 type expressions =
-  | Pointer of expressions  (** var* *)
-  | Address of expressions  (** &var *)
-  | Add of expressions * expressions  (** a + b *)
-  | Sub of expressions * expressions  (** a - b *)
-  | Inc of expressions  (** a++ *)
-  | Dec of expressions  (** a-- *)
-  | UnaryMin of expressions  (** -(expr) or -var *)
-  | UnaryPlus of expressions  (** +(expr) or +var *)
+  | Pointer of expressions
+  | Address of expressions
+  | Add of expressions * expressions
+  | Sub of expressions * expressions
+  | Inc of expressions
+  | Dec of expressions
+  | UnaryMin of expressions
+  | UnaryPlus of expressions
   | Mul of expressions * expressions
   | Div of expressions * expressions
   | Mod of expressions * expressions
@@ -59,7 +59,6 @@ and statements =
   | Expression of expressions
   | StatementsList of statements list
   | If of expressions * statements
-  | Else of expressions * statements
   | IfSeq of statements list * statements option
   | While of expressions * statements
   | For of
@@ -69,12 +68,4 @@ and statements =
   | Return of expressions
   | FunctionDef of types * name * (types * name) list * statements option
   | FuncSeq of statements list
-[@@deriving show { with_path = false }]
-
-and program_function = {
-  function_type : types;
-  function_name : name;
-  function_arguments : (types * name) list;
-  function_body : statements option;
-}
 [@@deriving show { with_path = false }]

@@ -25,70 +25,52 @@ type values =
 [@@deriving show { with_path = false }]
 
 type expressions =
-  | Pointer of expressions
-  | Address of expressions
-  | Add of expressions * expressions
-  | Sub of expressions * expressions
-  | Inc of expressions
-  | Dec of expressions
-  | UnaryMin of expressions
-  | UnaryPlus of expressions
-  | Mul of expressions * expressions
-  | Div of expressions * expressions
-  | Mod of expressions * expressions
-  | And of expressions * expressions
-  | Or of expressions * expressions
-  | Equal of expressions * expressions
-  | NotEqual of expressions * expressions
-  | Less of expressions * expressions
-  | LessOrEq of expressions * expressions
-  | More of expressions * expressions
-  | MoreOrEq of expressions * expressions
-  | Assign of expressions * expressions
-  | Define of types * expressions * expressions option
-  | DefineSeq of expressions list
-  | FuncCall of name * expressions list
-  | Cast of types * expressions
-  | Variable of name
-  | Value of values
+  | Pointer of expressions  (** var* *)
+  | Address of expressions  (** &var *)
+  | Add of expressions * expressions  (** a + b *)
+  | Sub of expressions * expressions  (** a - b *)
+  | Inc of expressions  (** var++ *)
+  | Dec of expressions  (** var-- *)
+  | UnaryMin of expressions  (** -(expr) or -var *)
+  | UnaryPlus of expressions  (** +(expr) or +var *)
+  | Mul of expressions * expressions  (** a * b *)
+  | Div of expressions * expressions  (** a / b *)
+  | Mod of expressions * expressions  (** a % b *)
+  | And of expressions * expressions  (** a && b *)
+  | Or of expressions * expressions  (** a || b *)
+  | Equal of expressions * expressions  (** a == b *)
+  | NotEqual of expressions * expressions  (** a != b *)
+  | Less of expressions * expressions  (** a < b *)
+  | LessOrEq of expressions * expressions  (** a <= b *)
+  | More of expressions * expressions  (** a > b *)
+  | MoreOrEq of expressions * expressions  (** a >= b *)
+  | Assign of expressions * expressions  (** a = b *)
+  | Define of types * expressions * expressions option  (** type var (= expr) *)
+  | DefineSeq of expressions list  (** type a, b = expr, c; *)
+  | FuncCall of name * expressions list  (** Function (a, b, c) *)
+  | Cast of types * expressions  (** (type)(expr) *)
+  | Variable of name  (** var *)
+  | Value of values  (** value (const) *)
   | Array of types * name * expressions option * expressions list option
-  | ArrayElem of name * expressions
+      (** type arr = {expr1, expr2, expr3} *)
+  | ArrayElem of name * expressions  (** arr[index] *)
 [@@deriving show { with_path = false }]
 
 and statements =
   | Expression of expressions
   | StatementsList of statements list
-  (* Надо подумать про if-(else if)-else *)
-  | If of expressions * statements
-  | Else of expressions * statements
+      (** list of statements in {} splitted by ";" or by other statement *)
+  | If of expressions * statements  (** if (condition) {statements list} *)
   | IfSeq of statements list * statements option
-  (* Можно for пропарсить как while, где в конце цикла
-     делаем действие с счётчиком, которое в for указано*)
-  | While of expressions * statements
+      (** if {...} else if {...} else {...} in list *)
+  | While of expressions * statements  (** while (condition) {...} *)
   | For of
       expressions option * expressions option * expressions option * statements
-  (* Переменная = expression *)
-  | Break
-  | Continue
-  | Return of expressions
+      (** for (initial expr; condition; loop expr) {...} *)
+  | Break  (** break; *)
+  | Continue  (** continue; *)
+  | Return of expressions  (** return expr; *)
   | FunctionDef of types * name * (types * name) list * statements option
-  | FuncSeq of statements list
+      (** type funcname(type arg1, type arg2 ...) {...} *)
+  | FuncSeq of statements list  (** list of function defs *)
 [@@deriving show { with_path = false }]
-
-and program_function = {
-  function_type : types;
-  function_name : name;
-  function_arguments : (types * name) list;
-  function_body : statements option;
-}
-[@@deriving show { with_path = false }]
-
-(** The main type for our AST (дерева абстрактного синтаксиса) *)
-(* type 'name t =
-   | Var of 'name (** Variable [x] *)
-   | Abs of 'name * 'name t (** Abstraction [λx.t] *)
-   | App of 'name t * 'name t *)
-
-(* Application [f g ] *)
-(** In type definition above the 3rd constructor is intentionally without documentation
-to test linter *)
