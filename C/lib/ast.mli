@@ -9,7 +9,7 @@ type ctype =
   | TInt  (** int type in C *)
   | TFloat  (** float type in C *)
   | TDouble  (** double type in C *)
-  | TPointer of ctype  (** pointer type in C (int** or char*, etc) *)
+  | TPointer of ctype  (** pointer type in C (int** or char*, ...) *)
 [@@deriving show { with_path = false }]
 
 type const =
