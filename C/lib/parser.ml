@@ -168,23 +168,33 @@ let parse_c =
     spaces
     *> choice
          [
+           return (Ast.Variable "!None") <* spaces <* input_end inp_end;
            pack.all_singles pack inp_end;
+           pack.arithmetical pack inp_end;
+           pack.logical pack inp_end;
            pack.logical_sequence pack inp_end;
            pack.parse_and pack inp_end;
-           pack.logical pack inp_end;
-           pack.arithmetical pack inp_end;
          ]
     <* spaces
+  in
+  let rec make_args_list parsed_list acc =
+    match parsed_list with
+    | Ast.Variable "!None" :: tl -> make_args_list tl acc
+    | expr :: tl -> make_args_list tl (acc @ [ expr ])
+    | [] -> return acc
   in
   let func_call pack =
     fix (fun _ ->
         spaces *> parse_name >>= fun x ->
         char '(' *> many (pack.all_ops pack "," <* char ',') >>= fun args ->
+        make_args_list args [] >>= fun real_args ->
         pack.all_ops pack ")"
-        >>= (fun arg -> return (Option.some arg))
-        <|> return Option.None <* char ')' <* spaces
+        >>= (function
+              | Ast.Variable "!None" -> return Option.None
+              | arg -> return (Option.some arg))
+        <* char ')' <* spaces
         >>= function
-        | Some arg -> cfcall x (args @ [ arg ])
+        | Some arg -> cfcall x (real_args @ [ arg ])
         | None -> cfcall x [])
   in
   let bracket_singles pack inp_end =
