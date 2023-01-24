@@ -1,3 +1,7 @@
+(** Copyright 2022-2023, Mikhail Vyrodov *)
+
+(** SPDX-License-Identifier: LGPL-3.0-or-later *)
+
 type error = [ `ParsingError of string ]
 
 val pp_error : Format.formatter -> [< `ParsingError of string ] -> unit

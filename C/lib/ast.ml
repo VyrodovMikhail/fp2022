@@ -1,21 +1,16 @@
+(** Copyright 2022-2023, Mikhail Vyrodov *)
+
+(** SPDX-License-Identifier: LGPL-3.0-or-later *)
+
 type name = string [@@deriving show { with_path = false }]
 
-type ctype =
-  | TVoid
-  | TChar
-  | TInt8
-  | TInt16
-  | TInt32
-  | TInt
-  | TFloat
-  | TDouble
-  | TPointer of ctype
+type ctype = TVoid | TChar | TInt8 | TInt16 | TInt32 | TPointer of ctype
 [@@deriving show { with_path = false }]
 
 type const =
   | VInt of Int32.t
+  | VBool of bool
   | VChar of char
-  | VDouble of float
   | VString of string
 [@@deriving show { with_path = false }]
 

@@ -1,3 +1,7 @@
+(** Copyright 2022-2023, Mikhail Vyrodov *)
+
+(** SPDX-License-Identifier: LGPL-3.0-or-later *)
+
 type name = string
 
 type ctype =
@@ -5,17 +9,14 @@ type ctype =
   | TChar  (** char type in C *)
   | TInt8  (** int_8t type in C *)
   | TInt16  (** int_16t type in C *)
-  | TInt32  (** int_32t type in C *)
-  | TInt  (** int type in C *)
-  | TFloat  (** float type in C *)
-  | TDouble  (** double type in C *)
+  | TInt32  (** int_32t or int type in C *)
   | TPointer of ctype  (** pointer type in C (int**, char*, ...) *)
 [@@deriving show { with_path = false }]
 
 type const =
   | VInt of Int32.t  (** int number *)
+  | VBool of bool
   | VChar of char  (** one character (for example, 'c') *)
-  | VDouble of float  (** float number *)
   | VString of string  (** string const (for example, "Hello") *)
 [@@deriving show { with_path = false }]
 

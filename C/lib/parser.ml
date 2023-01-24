@@ -1,5 +1,8 @@
+(** Copyright 2022-2023, Mikhail Vyrodov *)
+
+(** SPDX-License-Identifier: LGPL-3.0-or-later *)
+
 open Angstrom
-open Ast
 
 let is_space = function ' ' | '\t' | '\n' | '\r' -> true | _ -> false
 let spaces = skip_while is_space
@@ -110,11 +113,6 @@ let varname =
        language."
   else return (Ast.Variable var_name)
 
-let is_float =
-  let int_part = str_integer <* char '.' in
-  int_part >>= fun int_p ->
-  str_integer >>| fun fract -> Float.of_string (int_p ^ "." ^ fract)
-
 let pp_error ppf = function `ParsingError s -> Format.fprintf ppf "%s" s
 
 let parse_const =
@@ -131,8 +129,6 @@ let parse_const =
      | Some x ->
          char x *> char '\'' *> spaces *> return (Ast.Value (Ast.VChar x))
      | None -> fail "unclosed quote at the end of the file");
-    ( spaces *> is_float <* spaces >>= fun c ->
-      return (Ast.Value (Ast.VDouble c)) );
   ]
 
 let rec foldi i f acc = if i <= 0 then acc else foldi (pred i) f (f acc)
@@ -146,8 +142,6 @@ let parse_type =
     | "int8_t" -> return Ast.TInt8
     | "int16_t" -> return Ast.TInt16
     | "int32_t" -> return Ast.TInt32
-    | "float" -> return Ast.TFloat
-    | "double" -> return Ast.TDouble
     | _ -> fail "Parsing Error: unknown type."
   in
   parse_simple_type >>= fun expr ->
@@ -659,226 +653,3 @@ let parse str =
   with
   | Result.Ok x -> Result.Ok x
   | Error er -> Result.Error (`ParsingError er)
-
-let parse_optimistically str = Result.get_ok (parse str)
-
-let%test _ =
-  parse "int main() {}"
-  = Result.ok
-    @@ [
-         {
-           Ast.function_type = TInt32;
-           Ast.function_name = "main";
-           Ast.function_arguments = [];
-           Ast.function_body = Some (Ast.StatementsBlock []);
-         };
-       ]
-
-let%test _ =
-  parse
-    "int main(double number, char** table) {\n\
-     char* coeff = ToString(number);\n\
-     coeff += 2;\n\
-     coeff = (int*)coeff + 5;\n\
-     Insert(table, coeff);\n\
-     }"
-  = Result.ok
-    @@ [
-         {
-           function_type = TInt32;
-           function_name = "main";
-           function_arguments =
-             [ (TDouble, "number"); (TPointer (TPointer TChar), "table") ];
-           function_body =
-             Some
-               (StatementsBlock
-                  [
-                    Expression
-                      (DefineSeq
-                         [
-                           Define
-                             ( TPointer TChar,
-                               Variable "coeff",
-                               Some
-                                 (FuncCall ("ToString", [ Variable "number" ]))
-                             );
-                         ]);
-                    Expression
-                      (Assign
-                         ( Variable "coeff",
-                           Add (Variable "coeff", Value (VInt 2l)) ));
-                    Expression
-                      (Assign
-                         ( Variable "coeff",
-                           Add
-                             ( Cast (TPointer TInt32, Variable "coeff"),
-                               Value (VInt 5l) ) ));
-                    Expression
-                      (FuncCall
-                         ("Insert", [ Variable "table"; Variable "coeff" ]));
-                  ]);
-         };
-       ]
-
-let%test _ =
-  parse
-    "int main(double number, char** table) {\n\
-     char* coeff = ToString(number);\n\
-     char letter = 'a';\n\
-    \    char* my_str = \"my_string\";\n\
-    \    Insert(table, coeff);\n\
-    \    }"
-  = Result.ok
-    @@ [
-         {
-           function_type = TInt32;
-           function_name = "main";
-           function_arguments =
-             [ (TDouble, "number"); (TPointer (TPointer TChar), "table") ];
-           function_body =
-             Some
-               (StatementsBlock
-                  [
-                    Expression
-                      (DefineSeq
-                         [
-                           Define
-                             ( TPointer TChar,
-                               Variable "coeff",
-                               Some
-                                 (FuncCall ("ToString", [ Variable "number" ]))
-                             );
-                         ]);
-                    Expression
-                      (DefineSeq
-                         [
-                           Define
-                             (TChar, Variable "letter", Some (Value (VChar 'a')));
-                         ]);
-                    Expression
-                      (DefineSeq
-                         [
-                           Define
-                             ( TPointer TChar,
-                               Variable "my_str",
-                               Some (Value (VString "my_string")) );
-                         ]);
-                    Expression
-                      (FuncCall
-                         ("Insert", [ Variable "table"; Variable "coeff" ]));
-                  ]);
-         };
-       ]
-
-let%test _ =
-  parse
-    "void Helper(int value) {\n\
-     return value * (value + 1);\n\
-     }\n\
-    \       \n\
-     int main() {\n\
-    \    int n, i;\n\
-    \    int fact = 1;\n\
-    \    printf(\"Enter an integer: \");\n\
-    \    scanf(\"%d\", &n);\n\
-    \    if (n < 0)\n\
-    \ {\n\
-    \        printf(\"Error! Factorial of a negative number doesn't exist.\");\n\
-     }\n\
-    \    else {\n\
-    \        for (i = 1; i <= n; i++) {\n\
-    \            fact *= i;\n\
-    \        }\n\
-    \        printf(\"Factorial of %d = %llu\", n, fact);\n\
-    \    }\n\n\
-    \    return 0;\n\
-     }"
-  = Result.ok
-    @@ [
-         {
-           function_type = TVoid;
-           function_name = "Helper";
-           function_arguments = [ (TInt32, "value") ];
-           function_body =
-             Some
-               (StatementsBlock
-                  [
-                    Return
-                      (Mul
-                         ( Variable "value",
-                           Add (Variable "value", Value (VInt 1l)) ));
-                  ]);
-         };
-         {
-           function_type = TInt32;
-           function_name = "main";
-           function_arguments = [];
-           function_body =
-             Some
-               (StatementsBlock
-                  [
-                    Expression
-                      (DefineSeq
-                         [
-                           Define (TInt32, Variable "n", None);
-                           Define (TInt32, Variable "i", None);
-                         ]);
-                    Expression
-                      (DefineSeq
-                         [
-                           Define
-                             (TInt32, Variable "fact", Some (Value (VInt 1l)));
-                         ]);
-                    Expression
-                      (FuncCall
-                         ("printf", [ Value (VString "Enter an integer: ") ]));
-                    Expression
-                      (FuncCall
-                         ( "scanf",
-                           [ Value (VString "%d"); Address (Variable "n") ] ));
-                    IfSeq
-                      ( [
-                          If
-                            ( Less (Variable "n", Value (VInt 0l)),
-                              StatementsBlock
-                                [
-                                  Expression
-                                    (FuncCall
-                                       ( "printf",
-                                         [
-                                           Value
-                                             (VString
-                                                "Error! Factorial of a \
-                                                 negative number doesn't \
-                                                 exist.");
-                                         ] ));
-                                ] );
-                        ],
-                        Some
-                          (StatementsBlock
-                             [
-                               For
-                                 ( Some (Assign (Variable "i", Value (VInt 1l))),
-                                   Some (LessOrEq (Variable "i", Variable "n")),
-                                   Some (Inc (Variable "i")),
-                                   StatementsBlock
-                                     [
-                                       Expression
-                                         (Assign
-                                            ( Variable "fact",
-                                              Mul (Variable "fact", Variable "i")
-                                            ));
-                                     ] );
-                               Expression
-                                 (FuncCall
-                                    ( "printf",
-                                      [
-                                        Value (VString "Factorial of %d = %llu");
-                                        Variable "n";
-                                        Variable "fact";
-                                      ] ));
-                             ]) );
-                    Return (Value (VInt 0l));
-                  ]);
-         };
-       ]
