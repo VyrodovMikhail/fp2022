@@ -15,7 +15,6 @@ type ctype =
 
 type const =
   | VInt of Int32.t  (** int number *)
-  | VBool of bool
   | VChar of char  (** one character (for example, 'c') *)
   | VString of string  (** string const (for example, "Hello") *)
 [@@deriving show { with_path = false }]
@@ -54,6 +53,7 @@ type expression =
 
 and statement =
   | Expression of expression
+      (** Simple command like Function call, assign or define *)
   | StatementsBlock of statement list
       (** list of statements in {} splitted by ";" or by other statement *)
   | If of expression * statement  (** if (condition) {statements list} *)

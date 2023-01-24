@@ -168,7 +168,6 @@ let parse_c =
     spaces
     *> choice
          [
-           return (Ast.Variable "!None") <* spaces <* input_end inp_end;
            pack.all_singles pack inp_end;
            pack.arithmetical pack inp_end;
            pack.logical pack inp_end;
@@ -185,10 +184,19 @@ let parse_c =
   in
   let func_call pack =
     fix (fun _ ->
+        let func_all_ops inp_end =
+          spaces
+          *> choice
+               [
+                 return (Ast.Variable "!None") <* spaces <* input_end inp_end;
+                 pack.all_ops pack inp_end;
+               ]
+          <* spaces
+        in
         spaces *> parse_name >>= fun x ->
-        char '(' *> many (pack.all_ops pack "," <* char ',') >>= fun args ->
+        char '(' *> many (func_all_ops "," <* char ',') >>= fun args ->
         make_args_list args [] >>= fun real_args ->
-        pack.all_ops pack ")"
+        func_all_ops ")"
         >>= (function
               | Ast.Variable "!None" -> return Option.None
               | arg -> return (Option.some arg))

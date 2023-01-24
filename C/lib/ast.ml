@@ -7,11 +7,7 @@ type name = string [@@deriving show { with_path = false }]
 type ctype = TVoid | TChar | TInt8 | TInt16 | TInt32 | TPointer of ctype
 [@@deriving show { with_path = false }]
 
-type const =
-  | VInt of Int32.t
-  | VBool of bool
-  | VChar of char
-  | VString of string
+type const = VInt of Int32.t | VChar of char | VString of string
 [@@deriving show { with_path = false }]
 
 type expression =
