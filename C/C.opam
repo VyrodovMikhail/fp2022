@@ -12,6 +12,7 @@ bug-reports: "FIXME where to put bug reports about the code"
 depends: [
   "dune" {>= "2.8"}
   "angstrom"
+  "stdint"
   "ppx_deriving"
   "ppx_inline_test" {with-test}
   "qcheck-core"

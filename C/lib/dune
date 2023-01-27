@@ -1,8 +1,8 @@
 (library
  (name c_lib)
  (public_name C.Lib)
- (modules Ast Parser)
- (libraries base angstrom)
+ (modules Ast Parser Utils Interpret)
+ (libraries base angstrom stdint)
  (preprocess
   (pps ppx_expect ppx_deriving.show))
  (inline_tests))

@@ -23,6 +23,7 @@
  (depends
   dune
   angstrom
+  stdint
   ppx_deriving
   (ppx_inline_test :with-test)
   qcheck-core

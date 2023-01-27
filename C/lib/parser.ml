@@ -149,10 +149,12 @@ let parse_type =
   return (foldi (List.length ptrs) (fun x -> Ast.TPointer x) expr)
 
 let parse_inc =
-  spaces *> varname <* spaces <* string "++" <* spaces >>= fun x -> cinc x
+  spaces *> varname <* spaces <* string "++" <* spaces >>= fun x ->
+  casgn x (Ast.Add (x, Value (VInt 1l)))
 
 let parse_dec =
-  spaces *> varname <* spaces <* string "--" <* spaces >>= fun x -> cinc x
+  spaces *> varname <* spaces <* string "--" <* spaces >>= fun x ->
+  casgn x (Ast.Sub (x, Value (VInt 1l)))
 
 let parse_part_singles = choice (parse_const @ [ spaces *> varname <* spaces ])
 let parse_singles = spaces *> parse_part_singles <* spaces
@@ -209,7 +211,8 @@ let parse_c =
     let parse_arr_elem =
       fix (fun _ ->
           spaces *> parse_name >>= fun arr_name ->
-          char '[' *> spaces *> pack.all_ops pack "]" <* char ']' <* spaces
+          char '[' *> spaces *> pack.all_ops pack "]"
+          <* spaces <* char ']' <* spaces <* input_end inp_end
           >>= fun elem_index -> carrelem arr_name elem_index)
     in
     let unaryminus =
@@ -488,7 +491,12 @@ let parse_c =
                 >>= fun len -> carr arr_type arr_name len Option.None )
         in
         let parse_assign =
-          spaces *> varname <* spaces >>= fun x ->
+          spaces *> varname <* spaces <* input_end "="
+          <|> (pack.bracket_singles pack "=" >>= function
+               | Pointer x -> return (Ast.Pointer x)
+               | ArrayElem (x, y) -> carrelem x y
+               | _ -> fail "Trying to assign value to an l-value")
+          >>= fun x ->
           char '=' *> spaces *> parse_ops <* input_end inp_end >>= fun y ->
           casgn x y
         in
@@ -522,7 +530,12 @@ let parse_c =
           ])
   in
   let statement_block pack =
-    char '{' *> spaces *> many (pack.statement pack)
+    char '{' *> spaces
+    *> many
+         (pack.statement pack
+         <|> ( spaces *> string "return" *> spaces *> pack.all_ops pack ";"
+             <* char ';'
+             >>= fun x -> creturn x ))
     <* spaces <* char '}' <* spaces
     >>= fun x -> cstlist x
   in
@@ -599,17 +612,6 @@ let parse_c =
     return (arg_type, arg_name)
   in
   let func_def pack =
-    let func_statement_block =
-      fix (fun _ ->
-          char '{' *> spaces
-          *> many
-               (pack.statement pack
-               <|> ( spaces *> string "return" *> spaces *> pack.all_ops pack ";"
-                   <* char ';'
-                   >>= fun x -> creturn x ))
-          <* spaces <* char '}' <* spaces
-          >>= fun x -> cstlist x)
-    in
     spaces
     *> many
          ( parse_type >>= fun func_type ->
@@ -625,7 +627,7 @@ let parse_c =
              >>= (fun arg -> return (Option.some arg))
              <|> return Option.None <* char ')' <* spaces
              >>= fun last_arg ->
-             func_statement_block
+             pack.statement_block pack
              >>= (fun stms -> return (Option.some stms))
              <|> return Option.None
              >>= fun func_body ->

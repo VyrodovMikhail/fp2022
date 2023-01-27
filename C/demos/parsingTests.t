@@ -129,7 +129,10 @@ answer is correct
                                           (Value (VInt 1l))))),
                                  (Some (LessOrEq ((Variable "i"),
                                           (Variable "n")))),
-                                 (Some (Inc (Variable "i"))),
+                                 (Some (Assign ((Variable "i"),
+                                          (Add ((Variable "i"),
+                                             (Value (VInt 1l))))
+                                          ))),
                                  (StatementsBlock
                                     [(Expression
                                         (Assign ((Variable "fact"),
