@@ -188,7 +188,7 @@ jobs:
       - shell: bash
         run: >
           cat > text.md <<-EOF
-              Документация построена $(TZ='Europe/Moscow' date), должна скоро появиться в https://kakadu.github.io/fp2021/docs/${{ env.LANG_NAME }}
+              Документация построена $(TZ='Europe/Moscow' date), должна скоро появиться в https://kakadu.github.io/fp2022/docs/${{ env.LANG_NAME }}
           EOF
 
       - id: get-comment-body
